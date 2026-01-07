@@ -6,10 +6,13 @@ import argparse
 from urllib.parse import urlparse
 import time
 from paramiko.ssh_exception import SSHException, NoValidConnectionsError
+import logging
+from datetime import datetime
 
 
 def main():
     args = parse_arguments()
+    local_logger, remote_logger = initialize_logger()
 
     load_dotenv()  # loads .env from current directory
     
@@ -26,9 +29,8 @@ def main():
     )
 
     remote_deploy_path = "C:/production/"
-    ssh.exec_command(
-        f'powershell -Command "New-Item -ItemType Directory -Path {remote_deploy_path} -Force"'
-    )
+    cmd = f'powershell -Command "New-Item -ItemType Directory -Path {remote_deploy_path} -Force"'
+    ssh_execute(ssh, cmd, remote_logger)
    
     with SCPClient(ssh.get_transport()) as scp:
        scp.put("setupWindowsWebservice.ps1", remote_deploy_path)
@@ -42,32 +44,31 @@ def main():
         if not os.path.exists(path):
             parser.error(f"Path does not exist: {path}")
 
-        print(f"Path selected: {path}")
+        local_logger.info(f"local path to copy: {path}")
 
     if args.url:
         parsed = urlparse(args.url)
         if not parsed.scheme:
             parser.error(f"Invalid URL: {args.url}")
-        sys.exit("download url not yet implemented")
-        print(f"URL selected: {args.url}")
+        error_message = "download url not yet implemented"
+        local_logger.error(error_message)
+        sys.exit(error_message)
+        local_logger.info(f"URL selected: {args.url}")
 
     basename = os.path.basename(os.path.normpath(path))
     with SCPClient(ssh.get_transport()) as scp:
         scp.put(path, remote_deploy_path, recursive=True)
     if basename != "Artifacts":
         cmd = f'powershell -Command Remove-Item -Path "{remote_deploy_path}/Artifacts" -Recurse -Force'
-        ssh.exec_command(cmd)
+        ssh_execute(ssh, cmd, remote_logger)
         cmd = f'powershell -Command Rename-Item -Path "{remote_deploy_path}/{basename}" -NewName "Artifacts"'
-        ssh.exec_command(cmd)
-
+        ssh_execute(ssh, cmd, remote_logger)
 
     setup_ports_command = f'cd {remote_deploy_path} && powershell -NoProfile -ExecutionPolicy Bypass -File "{remote_deploy_path}setupWindowsPorts.ps1"'
-    print(setup_ports_command)
-    ssh.exec_command(setup_ports_command)
+    ssh_execute(ssh, setup_ports_command, remote_logger)
 
     setup_webservice_command = f'cd {remote_deploy_path} && powershell -NoProfile -ExecutionPolicy Bypass -File "{remote_deploy_path}setupWindowsWebservice.ps1"'
-    print(setup_webservice_command)
-    ssh.exec_command(setup_webservice_command)
+    ssh_execute(ssh, setup_webservice_command, remote_logger)
  
     ssh.close()
 
@@ -118,6 +119,38 @@ def establish_ssh_connection(host, user, password=None, key_file=None, port=22,
             time.sleep(delay)
 
     raise RuntimeError("SSH not available after retries") from last_exc
+
+def ssh_execute(ssh, cmd, logger, accept_error=True):
+    stdin, stdout, stderr = ssh.exec_command(cmd)
+    logger.info(f"command: {cmd}")
+    logger.info(f"output: {stdout.read().decode()}")
+    rc = stdout.channel.recv_exit_status()
+    if rc != 0:
+        logger.error(f"output: {stderr.read().decode()}")
+        if accept_error is False:
+            raise RuntimeError(stderr.read().decode())
+
+
+def initialize_logger():
+    log_dir = "logs"
+    os.makedirs(log_dir, exist_ok=True)
+    
+    # Log file name with date & time (DD-MM-YYYY_HH-MM-SS)
+    timestamp = datetime.now().strftime("%d-%m-%Y_%H-%M-%S")
+    log_file = os.path.join(log_dir, f"deploy_{timestamp}.log")
+    
+    # Configure logging
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        datefmt="%d-%m-%Y_%H-%M-%S",
+        handlers=[
+            logging.FileHandler(log_file),
+            logging.StreamHandler()  # also log to console
+        ],
+    )
+    
+    return logging.getLogger("local"), logging.getLogger("remote")
 
 if __name__ == "__main__":
     main()
