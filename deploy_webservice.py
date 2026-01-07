@@ -111,7 +111,7 @@ def establish_ssh_connection(host, user, logger, password=None, key_file=None, p
             )
             stdin, stdout, stderr = client.exec_command("echo ok")
             if stdout.read().strip() == b"ok":
-                logger.info("SSH connection established...")
+                logger.info(f"SSH connection established to {user}@{host} at port: {port}...")
                 return client
         
         except (SSHException, NoValidConnectionsError, OSError) as e:
@@ -139,7 +139,7 @@ def initialize_logger():
     
     # Log file name with date & time (DD-MM-YYYY_HH-MM-SS)
     timestamp = datetime.now().strftime("%d-%m-%Y_%H-%M-%S")
-    log_file = os.path.join(log_dir, f"deploy_{timestamp}.log")
+    log_file = os.path.join(log_dir, f"deploy_webservice_{timestamp}.log")
     
     # Configure logging
     logging.basicConfig(
