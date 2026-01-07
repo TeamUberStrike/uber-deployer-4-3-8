@@ -15,7 +15,7 @@ def main():
     local_logger, remote_logger = initialize_logger()
 
     load_dotenv()  # loads .env from current directory
-    
+
     host = os.getenv("HOST")
     user = os.getenv("USER")
     password = os.getenv("PASS")
@@ -32,11 +32,10 @@ def main():
     remote_deploy_path = "C:/production/"
     cmd = f'powershell -Command "New-Item -ItemType Directory -Path {remote_deploy_path} -Force"'
     ssh_execute(ssh, cmd, remote_logger)
-   
+
     with SCPClient(ssh.get_transport()) as scp:
-       scp.put("setupWindowsWebservice.ps1", remote_deploy_path)
-       scp.put("setupWindowsPorts.ps1", remote_deploy_path)
-   
+        scp.put("setupWindowsWebservice.ps1", remote_deploy_path)
+        scp.put("setupWindowsPorts.ps1", remote_deploy_path)
 
     if args.path:
         path = os.path.expanduser(args.path)
@@ -70,28 +69,31 @@ def main():
 
     setup_webservice_command = f'cd {remote_deploy_path} && powershell -NoProfile -ExecutionPolicy Bypass -File "{remote_deploy_path}setupWindowsWebservice.ps1"'
     ssh_execute(ssh, setup_webservice_command, remote_logger)
- 
+
     ssh.close()
 
+
 def parse_arguments():
-    parser = argparse.ArgumentParser(description="Requires ssh variables set in .env: HOST, USER, PASS and optionally PORT. Use either --path or --url")
+    parser = argparse.ArgumentParser(
+        description="Requires ssh variables set in .env: HOST, USER, PASS and optionally PORT. Use either --path or --url"
+    )
 
     group = parser.add_mutually_exclusive_group(required=True)
 
-    group.add_argument(
-        "--path",
-        help="Local filesystem path"
-    )
+    group.add_argument("--path", help="Local filesystem path")
 
-    group.add_argument(
-        "--url",
-        help="Remote URL (http, https, ftp, etc.)"
-    )
+    group.add_argument("--url", help="Remote URL (http, https, ftp, etc.)")
 
     return parser.parse_args()
 
 
-def establish_ssh_connection(host, user, logger, password=None, key_file=None, port=22,
+def establish_ssh_connection(
+    host,
+    user,
+    logger,
+    password=None,
+    key_file=None,
+    port=22,
     retries=3600,
     delay=5,
     timeout=10,
@@ -111,9 +113,11 @@ def establish_ssh_connection(host, user, logger, password=None, key_file=None, p
             )
             stdin, stdout, stderr = client.exec_command("echo ok")
             if stdout.read().strip() == b"ok":
-                logger.info(f"SSH connection established to {user}@{host} at port: {port}...")
+                logger.info(
+                    f"SSH connection established to {user}@{host} at port: {port}..."
+                )
                 return client
-        
+
         except (SSHException, NoValidConnectionsError, OSError) as e:
             last_exc = e
             logger.info(f"SSH attempt {attempt}/{retries} failed: {e}")
@@ -121,6 +125,7 @@ def establish_ssh_connection(host, user, logger, password=None, key_file=None, p
     error_message = "SSH not available after retries"
     logger.error(error_message)
     raise RuntimeError(error_message) from last_exc
+
 
 def ssh_execute(ssh, cmd, logger, accept_error=True):
     stdin, stdout, stderr = ssh.exec_command(cmd)
@@ -136,11 +141,11 @@ def ssh_execute(ssh, cmd, logger, accept_error=True):
 def initialize_logger():
     log_dir = "logs"
     os.makedirs(log_dir, exist_ok=True)
-    
+
     # Log file name with date & time (DD-MM-YYYY_HH-MM-SS)
     timestamp = datetime.now().strftime("%d-%m-%Y_%H-%M-%S")
     log_file = os.path.join(log_dir, f"deploy_webservice_{timestamp}.log")
-    
+
     # Configure logging
     logging.basicConfig(
         level=logging.INFO,
@@ -148,12 +153,12 @@ def initialize_logger():
         datefmt="%d-%m-%Y %H:%M:%S",
         handlers=[
             logging.FileHandler(log_file),
-            logging.StreamHandler()  # also log to console
+            logging.StreamHandler(),  # also log to console
         ],
     )
-    
+
     return logging.getLogger("local"), logging.getLogger("remote")
+
 
 if __name__ == "__main__":
     main()
-
