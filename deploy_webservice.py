@@ -24,6 +24,7 @@ def main():
     ssh = establish_ssh_connection(
         host=host,
         user=user,
+        logger=local_logger,
         password=password,
         port=port,
     )
@@ -90,7 +91,7 @@ def parse_arguments():
     return parser.parse_args()
 
 
-def establish_ssh_connection(host, user, password=None, key_file=None, port=22,
+def establish_ssh_connection(host, user, logger, password=None, key_file=None, port=22,
     retries=3600,
     delay=5,
     timeout=10,
@@ -110,12 +111,12 @@ def establish_ssh_connection(host, user, password=None, key_file=None, port=22,
             )
             stdin, stdout, stderr = client.exec_command("echo ok")
             if stdout.read().strip() == b"ok":
-                print("SSH connection established...")
+                logger.info("SSH connection established...")
                 return client
         
         except (SSHException, NoValidConnectionsError, OSError) as e:
             last_exc = e
-            print(f"SSH attempt {attempt}/{retries} failed: {e}")
+            logger.info(f"SSH attempt {attempt}/{retries} failed: {e}")
             time.sleep(delay)
 
     raise RuntimeError("SSH not available after retries") from last_exc
