@@ -72,7 +72,7 @@ def main():
     ssh.close()
 
 def parse_arguments():
-    parser = argparse.ArgumentParser(description="Use either --path or --url")
+    parser = argparse.ArgumentParser(description="Requires ssh variables set in .env: HOST, USER, PASS and optionally PORT. Use either --path or --url")
 
     group = parser.add_mutually_exclusive_group(required=True)
 
