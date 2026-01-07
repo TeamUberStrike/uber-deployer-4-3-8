@@ -143,7 +143,7 @@ def initialize_logger():
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-        datefmt="%d-%m-%Y_%H-%M-%S",
+        datefmt="%d-%m-%Y %H:%M:%S",
         handlers=[
             logging.FileHandler(log_file),
             logging.StreamHandler()  # also log to console
