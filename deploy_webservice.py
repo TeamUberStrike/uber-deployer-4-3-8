@@ -118,8 +118,9 @@ def establish_ssh_connection(host, user, logger, password=None, key_file=None, p
             last_exc = e
             logger.info(f"SSH attempt {attempt}/{retries} failed: {e}")
             time.sleep(delay)
-
-    raise RuntimeError("SSH not available after retries") from last_exc
+    error_message = "SSH not available after retries"
+    logger.error(error_message)
+    raise RuntimeError(error_message) from last_exc
 
 def ssh_execute(ssh, cmd, logger, accept_error=True):
     stdin, stdout, stderr = ssh.exec_command(cmd)
