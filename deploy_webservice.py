@@ -8,6 +8,7 @@ import time
 from paramiko.ssh_exception import SSHException, NoValidConnectionsError
 import logging
 from datetime import datetime
+import sys
 
 
 def main():
@@ -42,14 +43,14 @@ def main():
         path = os.path.abspath(path)
 
         if not os.path.exists(path):
-            parser.error(f"Path does not exist: {path}")
+            local_logger.error(f"Path does not exist: {path}")
 
         local_logger.info(f"local path to copy: {path}")
 
     if args.url:
         parsed = urlparse(args.url)
         if not parsed.scheme:
-            parser.error(f"Invalid URL: {args.url}")
+            local_logger.error(f"Invalid URL: {args.url}")
         error_message = "download url not yet implemented"
         local_logger.error(error_message)
         sys.exit(error_message)
