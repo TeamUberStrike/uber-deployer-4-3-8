@@ -27,9 +27,9 @@ New-WebAppPool -Name "UberStrikeAppPool"
 
 # Create website
 if ([string]::IsNullOrEmpty($HostName)) {
-    New-Website -Name "UberStrikeWebService" -Port 80 -PhysicalPath $webservicePath -ApplicationPool "UberStrikeAppPool"
+    New-Website -Name $webserviceName -Port 80 -PhysicalPath $webservicePath -ApplicationPool "UberStrikeAppPool"
 } else {
-    New-Website -Name "UberStrikeWebService" -Port 80 -PhysicalPath $webservicePath -ApplicationPool "UberStrikeAppPool" -HostHeader $HostName
+    New-Website -Name $webserviceName -Port 80 -PhysicalPath $webservicePath -ApplicationPool "UberStrikeAppPool" -HostHeader $HostName
 }
 
 Start-Website -Name $webserviceName
