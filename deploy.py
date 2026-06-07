@@ -71,9 +71,13 @@ def main():
 
     if args.service_type == "webservice":
         setup_webservice_command = f'cd {remote_deploy_path} && powershell -NoProfile -ExecutionPolicy Bypass -File "{remote_deploy_path}setupWindowsWebservice.ps1"'
+        if args.webservice_hostname:
+            setup_webservice_command += f' "{args.webservice_hostname}"'
         ssh_execute(ssh, setup_webservice_command, remote_logger)
     elif args.service_type == "portal":
         setup_portal_command = f'cd {remote_deploy_path} && powershell -NoProfile -ExecutionPolicy Bypass -File "{remote_deploy_path}setupWindowsPortal.ps1"'
+        if args.webservice_hostname:
+            setup_portal_command += f' "{args.webservice_hostname}"'
         ssh_execute(ssh, setup_portal_command, remote_logger)
 
     ssh.close()
@@ -95,6 +99,11 @@ def parse_arguments():
     group.add_argument("--path", help="Local filesystem path")
 
     group.add_argument("--url", help="Remote URL (http, https, ftp, etc.)")
+
+    parser.add_argument(
+        "--webservice-hostname",
+        help="Destination URL for the service (host name or domain)"
+    )
 
     return parser.parse_args()
 
