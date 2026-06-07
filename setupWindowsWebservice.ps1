@@ -1,3 +1,8 @@
+param(
+    [Parameter(Mandatory=$false)]
+    [string]$HostName
+)
+
 $productionPath = "C:\production"
 
 $webservicePath = Join-Path $productionPath "Artifacts\UberStrike.DataCenter.WebService"
@@ -21,7 +26,10 @@ if (Get-Website -Name "Default Web Site" -ErrorAction SilentlyContinue) {
 New-WebAppPool -Name "UberStrikeAppPool"
 
 # Create website
-New-Website -Name "UberStrikeWebService" -Port 80 -PhysicalPath $webservicePath -ApplicationPool "UberStrikeAppPool"
+if ([string]::IsNullOrEmpty($HostName)) {
+    New-Website -Name "UberStrikeWebService" -Port 80 -PhysicalPath $webservicePath -ApplicationPool "UberStrikeAppPool"
+} else {
+    New-Website -Name "UberStrikeWebService" -Port 80 -PhysicalPath $webservicePath -ApplicationPool "UberStrikeAppPool" -HostHeader $HostName
+}
 
 Start-Website -Name $webserviceName
-
