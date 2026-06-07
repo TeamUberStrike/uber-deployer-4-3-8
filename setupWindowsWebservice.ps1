@@ -23,7 +23,9 @@ if (Get-Website -Name "Default Web Site" -ErrorAction SilentlyContinue) {
 }
 
 # Create app pool
-New-WebAppPool -Name "UberStrikeAppPool"
+if (-not (Test-Path "IIS:\AppPools\UberStrikeAppPool" -ErrorAction SilentlyContinue)) {
+    New-WebAppPool -Name "UberStrikeAppPool"
+}
 
 # Create website
 if ([string]::IsNullOrEmpty($HostName)) {
