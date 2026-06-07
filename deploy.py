@@ -102,7 +102,7 @@ def parse_arguments():
 
     parser.add_argument(
         "--webservice-hostname",
-        help="Destination URL for the service (host name or domain)"
+        help="Webservice Hostname for the service (host name or domain)"
     )
 
     return parser.parse_args()
