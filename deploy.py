@@ -37,6 +37,7 @@ def main():
     with SCPClient(ssh.get_transport()) as scp:
         scp.put("setupWindowsWebservice.ps1", remote_deploy_path)
         scp.put("setupWindowsPorts.ps1", remote_deploy_path)
+        scp.put("setupWindowsPortal.ps1", remote_deploy_path)
 
     if args.path:
         path = os.path.expanduser(args.path)
@@ -68,8 +69,16 @@ def main():
     setup_ports_command = f'cd {remote_deploy_path} && powershell -NoProfile -ExecutionPolicy Bypass -File "{remote_deploy_path}setupWindowsPorts.ps1"'
     ssh_execute(ssh, setup_ports_command, remote_logger)
 
-    setup_webservice_command = f'cd {remote_deploy_path} && powershell -NoProfile -ExecutionPolicy Bypass -File "{remote_deploy_path}setupWindowsWebservice.ps1"'
-    ssh_execute(ssh, setup_webservice_command, remote_logger)
+    if args.service_type == "webservice":
+        setup_webservice_command = f'cd {remote_deploy_path} && powershell -NoProfile -ExecutionPolicy Bypass -File "{remote_deploy_path}setupWindowsWebservice.ps1"'
+        if args.webservice_hostname:
+            setup_webservice_command += f' "{args.webservice_hostname}"'
+        ssh_execute(ssh, setup_webservice_command, remote_logger)
+    elif args.service_type == "portal":
+        setup_portal_command = f'cd {remote_deploy_path} && powershell -NoProfile -ExecutionPolicy Bypass -File "{remote_deploy_path}setupWindowsPortal.ps1"'
+        if args.webservice_hostname:
+            setup_portal_command += f' "{args.webservice_hostname}"'
+        ssh_execute(ssh, setup_portal_command, remote_logger)
 
     ssh.close()
 
@@ -79,11 +88,22 @@ def parse_arguments():
         description="Requires ssh variables set in .env: HOST, USER, PASS and optionally PORT. Use either --path or --url"
     )
 
+    parser.add_argument(
+        "service_type",
+        choices=["webservice", "portal"],
+        help="Type of service to deploy"
+    )
+
     group = parser.add_mutually_exclusive_group(required=True)
 
     group.add_argument("--path", help="Local filesystem path")
 
     group.add_argument("--url", help="Remote URL (http, https, ftp, etc.)")
+
+    parser.add_argument(
+        "--webservice-hostname",
+        help="Webservice Hostname for the service (host name or domain)"
+    )
 
     return parser.parse_args()
 
