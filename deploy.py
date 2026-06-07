@@ -37,6 +37,7 @@ def main():
     with SCPClient(ssh.get_transport()) as scp:
         scp.put("setupWindowsWebservice.ps1", remote_deploy_path)
         scp.put("setupWindowsPorts.ps1", remote_deploy_path)
+        scp.put("setupWindowsPortal.ps1", remote_deploy_path)
 
     if args.path:
         path = os.path.expanduser(args.path)
@@ -68,8 +69,12 @@ def main():
     setup_ports_command = f'cd {remote_deploy_path} && powershell -NoProfile -ExecutionPolicy Bypass -File "{remote_deploy_path}setupWindowsPorts.ps1"'
     ssh_execute(ssh, setup_ports_command, remote_logger)
 
-    setup_webservice_command = f'cd {remote_deploy_path} && powershell -NoProfile -ExecutionPolicy Bypass -File "{remote_deploy_path}setupWindowsWebservice.ps1"'
-    ssh_execute(ssh, setup_webservice_command, remote_logger)
+    if args.service_type == "webservice":
+        setup_webservice_command = f'cd {remote_deploy_path} && powershell -NoProfile -ExecutionPolicy Bypass -File "{remote_deploy_path}setupWindowsWebservice.ps1"'
+        ssh_execute(ssh, setup_webservice_command, remote_logger)
+    elif args.service_type == "portal":
+        setup_portal_command = f'cd {remote_deploy_path} && powershell -NoProfile -ExecutionPolicy Bypass -File "{remote_deploy_path}setupWindowsPortal.ps1"'
+        ssh_execute(ssh, setup_portal_command, remote_logger)
 
     ssh.close()
 
@@ -77,6 +82,12 @@ def main():
 def parse_arguments():
     parser = argparse.ArgumentParser(
         description="Requires ssh variables set in .env: HOST, USER, PASS and optionally PORT. Use either --path or --url"
+    )
+
+    parser.add_argument(
+        "service_type",
+        choices=["webservice", "portal"],
+        help="Type of service to deploy"
     )
 
     group = parser.add_mutually_exclusive_group(required=True)
