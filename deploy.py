@@ -38,6 +38,7 @@ def main():
         scp.put("setupWindowsWebservice.ps1", remote_deploy_path)
         scp.put("setupWindowsPorts.ps1", remote_deploy_path)
         scp.put("setupWindowsPortal.ps1", remote_deploy_path)
+        scp.put("setupWindowsCallback.ps1", remote_deploy_path)
 
     if args.path:
         path = os.path.expanduser(args.path)
@@ -45,6 +46,7 @@ def main():
 
         if not os.path.exists(path):
             local_logger.error(f"Path does not exist: {path}")
+            sys.exit(1)
 
         local_logger.info(f"local path to copy: {path}")
 
@@ -57,14 +59,23 @@ def main():
         sys.exit(error_message)
         local_logger.info(f"URL selected: {args.url}")
 
-    basename = os.path.basename(os.path.normpath(path))
-    with SCPClient(ssh.get_transport()) as scp:
-        scp.put(path, remote_deploy_path, recursive=True)
-    if basename != "Artifacts":
-        cmd = f'powershell -Command Remove-Item -Path "{remote_deploy_path}/Artifacts" -Recurse -Force'
+    deploy_path = resolve_deploy_path(path, args.service_type, local_logger)
+
+    if args.service_type == "callback":
+        remote_artifacts_path = f"{remote_deploy_path}Artifacts"
+        cmd = f'powershell -Command "New-Item -ItemType Directory -Path {remote_artifacts_path} -Force"'
         ssh_execute(ssh, cmd, remote_logger)
-        cmd = f'powershell -Command Rename-Item -Path "{remote_deploy_path}/{basename}" -NewName "Artifacts"'
-        ssh_execute(ssh, cmd, remote_logger)
+        with SCPClient(ssh.get_transport()) as scp:
+            scp.put(deploy_path, remote_artifacts_path, recursive=True)
+    else:
+        basename = os.path.basename(os.path.normpath(deploy_path))
+        with SCPClient(ssh.get_transport()) as scp:
+            scp.put(deploy_path, remote_deploy_path, recursive=True)
+        if basename != "Artifacts":
+            cmd = f'powershell -Command Remove-Item -Path "{remote_deploy_path}/Artifacts" -Recurse -Force'
+            ssh_execute(ssh, cmd, remote_logger)
+            cmd = f'powershell -Command Rename-Item -Path "{remote_deploy_path}/{basename}" -NewName "Artifacts"'
+            ssh_execute(ssh, cmd, remote_logger)
 
     setup_ports_command = f'cd {remote_deploy_path} && powershell -NoProfile -ExecutionPolicy Bypass -File "{remote_deploy_path}setupWindowsPorts.ps1"'
     ssh_execute(ssh, setup_ports_command, remote_logger)
@@ -79,8 +90,42 @@ def main():
         if args.webservice_hostname:
             setup_portal_command += f' "{args.webservice_hostname}"'
         ssh_execute(ssh, setup_portal_command, remote_logger)
+    elif args.service_type == "callback":
+        cert_thumbprint = args.cert_thumbprint or ""
+        cert_remote_path = ""
+        cert_password = args.cert_password if args.cert_password is not None else os.getenv("CERT_PASSWORD", "")
+
+        if args.cert_pfx:
+            cert_pfx_path = os.path.abspath(os.path.expanduser(args.cert_pfx))
+            if not os.path.isfile(cert_pfx_path):
+                local_logger.error(f"Certificate file does not exist: {cert_pfx_path}")
+                sys.exit(1)
+            with SCPClient(ssh.get_transport()) as scp:
+                scp.put(cert_pfx_path, remote_deploy_path)
+            cert_remote_path = f"{remote_deploy_path}{os.path.basename(cert_pfx_path)}"
+            local_logger.info(f"certificate uploaded: {cert_remote_path}")
+
+        hostname = args.webservice_hostname or ""
+        setup_callback_command = f'cd {remote_deploy_path} && powershell -NoProfile -ExecutionPolicy Bypass -File "{remote_deploy_path}setupWindowsCallback.ps1" "{hostname}" "{cert_thumbprint}" "{cert_remote_path}" "{cert_password}"'
+        ssh_execute(ssh, setup_callback_command, remote_logger)
 
     ssh.close()
+
+
+def resolve_deploy_path(path, service_type, logger):
+    if service_type != "callback":
+        return path
+
+    if os.path.basename(os.path.normpath(path)) == "Cmune.Channels.Callback":
+        callback_path = path
+    else:
+        callback_path = os.path.join(path, "Cmune.Channels.Callback")
+
+    if not os.path.isdir(callback_path):
+        logger.error(f"Callback path does not exist: {callback_path}")
+        sys.exit(1)
+
+    return callback_path
 
 
 def parse_arguments():
@@ -90,7 +135,7 @@ def parse_arguments():
 
     parser.add_argument(
         "service_type",
-        choices=["webservice", "portal"],
+        choices=["webservice", "portal", "callback"],
         help="Type of service to deploy"
     )
 
@@ -102,7 +147,24 @@ def parse_arguments():
 
     parser.add_argument(
         "--webservice-hostname",
-        help="Webservice Hostname for the service (host name or domain)"
+        help="Hostname for the site (host name or domain)"
+    )
+
+    cert_group = parser.add_mutually_exclusive_group()
+
+    cert_group.add_argument(
+        "--cert-thumbprint",
+        help="Thumbprint of an existing certificate in LocalMachine\\My for the HTTPS binding"
+    )
+
+    cert_group.add_argument(
+        "--cert-pfx",
+        help="Local path to a PFX file (e.g. Cloudflare Origin Certificate) to import"
+    )
+
+    parser.add_argument(
+        "--cert-password",
+        help="Password for the PFX (defaults to CERT_PASSWORD from .env)"
     )
 
     return parser.parse_args()

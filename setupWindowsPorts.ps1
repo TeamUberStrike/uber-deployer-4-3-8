@@ -7,3 +7,6 @@ New-NetFirewallRule -DisplayName "UberStrike Photon TCP" -Direction Outbound -Lo
 New-NetFirewallRule -DisplayName "UberStrike Webservice" -Direction Inbound -LocalPort 80 -Protocol TCP -Action Allow
 New-NetFirewallRule -DisplayName "UberStrike Webservice" -Direction Outbound -LocalPort 80 -Protocol TCP -Action Allow
 
+New-NetFirewallRule -DisplayName "UberStrike Webservice HTTPS" -Direction Inbound -LocalPort 443 -Protocol TCP -Action Allow
+New-NetFirewallRule -DisplayName "UberStrike Webservice HTTPS" -Direction Outbound -LocalPort 443 -Protocol TCP -Action Allow
+
