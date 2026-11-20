@@ -61,21 +61,11 @@ def main():
 
     deploy_path = resolve_deploy_path(path, args.service_type, local_logger)
 
-    if args.service_type == "callback":
-        remote_artifacts_path = f"{remote_deploy_path}Artifacts"
-        cmd = f'powershell -Command "New-Item -ItemType Directory -Path {remote_artifacts_path} -Force"'
-        ssh_execute(ssh, cmd, remote_logger)
-        with SCPClient(ssh.get_transport()) as scp:
-            scp.put(deploy_path, remote_artifacts_path, recursive=True)
-    else:
-        basename = os.path.basename(os.path.normpath(deploy_path))
-        with SCPClient(ssh.get_transport()) as scp:
-            scp.put(deploy_path, remote_deploy_path, recursive=True)
-        if basename != "Artifacts":
-            cmd = f'powershell -Command Remove-Item -Path "{remote_deploy_path}/Artifacts" -Recurse -Force'
-            ssh_execute(ssh, cmd, remote_logger)
-            cmd = f'powershell -Command Rename-Item -Path "{remote_deploy_path}/{basename}" -NewName "Artifacts"'
-            ssh_execute(ssh, cmd, remote_logger)
+    remote_artifacts_path = f"{remote_deploy_path}Artifacts"
+    cmd = f'powershell -Command "New-Item -ItemType Directory -Path {remote_artifacts_path} -Force"'
+    ssh_execute(ssh, cmd, remote_logger)
+    with SCPClient(ssh.get_transport()) as scp:
+        scp.put(deploy_path, remote_artifacts_path, recursive=True)
 
     setup_ports_command = f'cd {remote_deploy_path} && powershell -NoProfile -ExecutionPolicy Bypass -File "{remote_deploy_path}setupWindowsPorts.ps1"'
     ssh_execute(ssh, setup_ports_command, remote_logger)
@@ -112,20 +102,26 @@ def main():
     ssh.close()
 
 
+SERVICE_FOLDERS = {
+    "webservice": "UberStrike.DataCenter.WebService",
+    "portal": "UberStrike.Channels.Portal",
+    "callback": "Cmune.Channels.Callback",
+}
+
+
 def resolve_deploy_path(path, service_type, logger):
-    if service_type != "callback":
-        return path
+    folder = SERVICE_FOLDERS[service_type]
 
-    if os.path.basename(os.path.normpath(path)) == "Cmune.Channels.Callback":
-        callback_path = path
+    if os.path.basename(os.path.normpath(path)) == folder:
+        service_path = path
     else:
-        callback_path = os.path.join(path, "Cmune.Channels.Callback")
+        service_path = os.path.join(path, folder)
 
-    if not os.path.isdir(callback_path):
-        logger.error(f"Callback path does not exist: {callback_path}")
+    if not os.path.isdir(service_path):
+        logger.error(f"{service_type} path does not exist: {service_path}")
         sys.exit(1)
 
-    return callback_path
+    return service_path
 
 
 def parse_arguments():

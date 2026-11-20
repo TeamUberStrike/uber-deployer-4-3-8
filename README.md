@@ -4,7 +4,11 @@ Example command
 ```
 poetry run python .\deploy.py --path C:\code\uber-server-4-3-8\Artifacts portal --webservice-hostname ws-dev.uberforever.eu
 ```
-`path` must be a path to Artifacts.
+`path` can be the Artifacts directory or the service directory itself. Only the
+folder for the selected service is deployed:
+- `webservice` -> `UberStrike.DataCenter.WebService`
+- `portal` -> `UberStrike.Channels.Portal`
+- `callback` -> `Cmune.Channels.Callback`
 
 Callback channel only (deploys `Cmune.Channels.Callback` only and hosts it at the site root):
 ```
